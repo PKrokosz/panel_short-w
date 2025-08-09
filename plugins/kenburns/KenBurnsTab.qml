@@ -11,6 +11,28 @@ Item {
         spacing: 8
         padding: 8
 
+        RowLayout {
+            Label { text: "Folder:" }
+            TextField {
+                id: folderField
+                placeholderText: "."
+                text: "."
+                Layout.fillWidth: true
+            }
+            Button {
+                text: "--help"
+                ToolTip.text: "Wstaw --help do pola argów"
+                onClicked: argField.text = "--help"
+            }
+        }
+
+        RowLayout {
+            spacing: 6
+            Button { text: "Preview"; onClicked: argField.text = "--oneclick --profile preview" }
+            Button { text: "Overlay Blur"; onClicked: argField.text = "--mode panels-overlay --bg-source blur --profile social" }
+            Button { text: "Export Panels"; onClicked: argField.text = "--export-panels panels --export-mode rect" }
+        }
+
         TextField {
             id: argField
             placeholderText: "--help"
@@ -20,7 +42,12 @@ Item {
         RowLayout {
             Button {
                 text: "Run"
-                onClicked: KenBurns.run(argField.text)
+                onClicked: {
+                    const folder = (folderField.text || ".").trim();
+                    const args = argField.text.trim();
+                    const full = `"${folder.replace(/"/g, '\\"')}"` + (args ? " " + args : "");
+                    KenBurns.run(full);
+                }
             }
             Button {
                 text: "Stop"
@@ -28,7 +55,10 @@ Item {
             }
             Button {
                 text: "Save preset"
-                onClicked: KenBurns.savePreset("custom_preset.json", argField.text)
+                onClicked: {
+                    const ok = KenBurns.savePreset("custom_preset.json", argField.text);
+                    toast.show(ok ? "Preset saved" : "Save failed", ok);
+                }
             }
         }
 
@@ -47,11 +77,10 @@ Item {
             logArea.cursorPosition = logArea.length
         }
         function onFinished(code) {
-            toast.text = code === 0 ? "Process finished" : "Process failed";
-            toast.color = code === 0 ? "#444444" : "#E74C3C";
-            toast.visible = true;
-            logArea.append("[EXIT] " + code)
-            logArea.cursorPosition = logArea.length
+            if (code === 0) toast.show("Process finished", true);
+            else toast.show("Process failed (" + code + ")", false);
+            logArea.append("[EXIT] " + code);
+            logArea.cursorPosition = logArea.length;
         }
     }
 

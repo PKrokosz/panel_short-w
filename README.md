@@ -34,6 +34,12 @@ Po spełnieniu warunków w UI pojawi się przycisk **Ken Burns...** otwierający
 
 Aby wyłączyć moduł, usuń zmienną `KENBURNS_ENABLED` i zrestartuj aplikację.
 
+### Przykładowe komendy (w polu "Args")
+- One-Click Preview: `--oneclick --profile preview`
+- Overlay z rozmytym tłem (social): `--mode panels-overlay --bg-source blur --profile social`
+- Eksport paneli (rect): `--export-panels panels --export-mode rect`
+*(Pamiętaj o ustawieniu pola "Folder" — domyślnie bieżący `.`)*
+
 ## Build EXE (Windows)
 ```powershell
 .\build_win.ps1
