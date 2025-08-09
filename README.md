@@ -23,6 +23,17 @@ Edytuj `config/actions.yaml`. Obsługiwane pola:
 
 Po zmianie w YAML kliknij **Reload** w panelu.
 
+## Ken Burns (opcjonalny moduł)
+
+Funkcjonalność Ken Burns jest w pełni opcjonalna. Aby ją włączyć:
+
+1. Zainstaluj moduł `ken_burns_reel` oraz upewnij się, że `ffmpeg` jest dostępny w `PATH`.
+2. Ustaw zmienną środowiskową `KENBURNS_ENABLED=1` przed uruchomieniem aplikacji.
+
+Po spełnieniu warunków w UI pojawi się przycisk **Ken Burns...** otwierający dialog z prostym formularzem uruchamiającym CLI.
+
+Aby wyłączyć moduł, usuń zmienną `KENBURNS_ENABLED` i zrestartuj aplikację.
+
 ## Build EXE (Windows)
 ```powershell
 .\build_win.ps1

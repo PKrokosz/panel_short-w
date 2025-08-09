@@ -1,5 +1,8 @@
 
 import os, sys, threading
+import importlib.util
+import json
+import shutil
 from pathlib import Path
 
 # HiDPI + Basic style (customizable controls)
@@ -88,6 +91,23 @@ def _load_dotenv():
 
 
 _load_dotenv()
+
+def _has_kenburns() -> bool:
+    """Check environment and dependencies for Ken Burns module."""
+    if os.environ.get("KENBURNS_ENABLED") != "1":
+        return False
+    if importlib.util.find_spec("ken_burns_reel") is None:
+        return False
+    if shutil.which("ffmpeg") is None:
+        return False
+    return True
+
+def _load_kb_schema():
+    path = APP_DIR / "ken_burns_cli_schema.json"
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
 
 # ---- App Bridge & UI ----
 class Bridge(QObject):
@@ -348,6 +368,23 @@ if __name__ == "__main__":
     app.setWindowIcon(QIcon(str(APP_DIR / "assets" / "icon.png")))
 
     engine = QQmlApplicationEngine()
+
+    has_kb = _has_kenburns()
+    engine.rootContext().setContextProperty("HasKenBurns", has_kb)
+    schema = _load_kb_schema() if has_kb else None
+    engine.rootContext().setContextProperty("KenBurnsSchema", schema)
+
+    kb_bridge = None
+    if has_kb:
+        try:
+            from plugins.kenburns.plugin_kenburns import KenBurnsBridge
+
+            kb_bridge = KenBurnsBridge()
+            engine.rootContext().setContextProperty("KenBurns", kb_bridge)
+        except Exception as e:
+            print(f"[WARN] Ken Burns bridge load failed: {e}")
+            has_kb = False
+            engine.rootContext().setContextProperty("HasKenBurns", False)
 
     runner = ProcessRunner()
     bridge = Bridge(runner, engine)
