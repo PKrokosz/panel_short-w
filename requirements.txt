@@ -1,0 +1,3 @@
+PySide6>=6.6
+PyYAML>=6.0
+QHotkey>=1.5  # optional; if not installed, app still runs but panic hotkey is disabled
