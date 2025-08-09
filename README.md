@@ -1,27 +1,33 @@
-# Overlay Router — PySide6 + QML
 
-Półprzezroczysta nakładka na pulpit do odpalania lokalnych skryptów.
-Frameless, always-on-top, przyciski z YAML-a, logi procesów, click‑through.
+# Overlay Router (PySide6 + Acrylic)
 
-## Instalacja
-```bash
+Szklany panel nad pulpitem do odpalania lokalnych skryptów (akcje z YAML), blur Acrylic, tray, panic-hotkey.
+
+## Szybki start
+```powershell
 python -m venv .venv
-# Windows:
-. .venv/Scripts/activate
-# Linux/macOS:
-# source .venv/bin/activate
+.\.venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-## Uruchomienie
-```bash
 python app.py
 ```
 
-## Konfiguracja akcji
-Edytuj `config/actions.yaml` — każda akcja ma `label` i `command`.
-Po zmianach kliknij **Reload** w UI lub z menu w trayu.
+## Hotkey
+Globalny: **Alt+Shift+P** (wymaga `keyboard` — już w `requirements.txt`).
 
-## Wymagania dodatkowe
-Jeśli używasz Tesseract / ImageMagick, upewnij się, że masz je w PATH
-albo podaj pełne ścieżki w `config/actions.yaml`.
+## Konfiguracja akcji
+Edytuj `config/actions.yaml`. Obsługiwane pola:
+
+- `label` – tekst na przycisku
+- `command` – polecenie shell
+- `cwd` *(opcjonalnie)* – katalog roboczy dla akcji
+
+Po zmianie w YAML kliknij **Reload** w panelu.
+
+## Build EXE (Windows)
+```powershell
+.\build_win.ps1
+```
+Artefakt pojawi się w `dist/OverlayRouter/OverlayRouter.exe`.
+
+## GitHub Actions
+Push do main tworzy artefakt z binarką (Windows). Zobacz `.github/workflows/windows-build.yml`.
