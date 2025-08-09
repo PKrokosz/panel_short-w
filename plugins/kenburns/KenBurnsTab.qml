@@ -31,6 +31,10 @@ Item {
             Button { text: "Preview"; onClicked: argField.text = "--oneclick --profile preview" }
             Button { text: "Overlay Blur"; onClicked: argField.text = "--mode panels-overlay --bg-source blur --profile social" }
             Button { text: "Export Panels"; onClicked: argField.text = "--export-panels panels --export-mode rect" }
+            Button {
+                text: "Parametry…"
+                onClicked: paramsDlg.open()
+            }
         }
 
         TextField {
@@ -38,6 +42,22 @@ Item {
             placeholderText: "--help"
             Layout.fillWidth: true
         }
+
+        // Dynamiczne parametry
+        Loader {
+            id: paramsLoader
+            source: "plugins/kenburns/ParamsDialog.qml"
+            active: true
+            onLoaded: {
+                item.schema = KenBurnsSchema
+                item.ui = KenBurnsUi
+            }
+        }
+        Component.onCompleted: {
+            // nic — loader pasywny, używamy item przez id
+        }
+        function openParams() { paramsDlg.open() }
+        property alias paramsDlg: paramsLoader.item
 
         RowLayout {
             Button {
@@ -67,6 +87,19 @@ Item {
             readOnly: true
             Layout.fillWidth: true
             Layout.fillHeight: true
+        }
+    }
+
+    // Obsługa powrotu z ParamsDialog (po OK)
+    Connections {
+        target: paramsDlg
+        function onAccepted() {
+            const s = paramsDlg.args || "";
+            if (s && s.length) {
+                // scal: stare argi + nowe (bez duplikacji folderu – folder jest poza dialogiem)
+                argField.text = s;
+                toast.show("Zastosowano parametry", true);
+            }
         }
     }
 

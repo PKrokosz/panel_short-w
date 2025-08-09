@@ -109,6 +109,13 @@ def _load_kb_schema():
     except Exception:
         return None
 
+def _load_kb_ui_grouped():
+    path = APP_DIR / "ken_burns_ui_grouped.json"
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
 # ---- App Bridge & UI ----
 class Bridge(QObject):
     log = Signal(str)
@@ -373,7 +380,9 @@ if __name__ == "__main__":
     has_kb = _has_kenburns()
     engine.rootContext().setContextProperty("HasKenBurns", has_kb)
     schema = _load_kb_schema() if has_kb else None
+    ui_grouped = _load_kb_ui_grouped() if has_kb else None
     engine.rootContext().setContextProperty("KenBurnsSchema", schema)
+    engine.rootContext().setContextProperty("KenBurnsUi", ui_grouped)
 
     kb_bridge = None
     if has_kb:
