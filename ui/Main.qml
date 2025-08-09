@@ -88,6 +88,12 @@ Window {
                     onClicked: Bridge.toggleClickThrough()
                 }
                 Button {
+                    id: kbBtn
+                    text: "Ken Burns..."
+                    visible: HasKenBurns
+                    onClicked: kbDialog.open()
+                }
+                Button {
                     id: logBtn
                     text: logPanel.visible ? "Hide Log" : "Show Log"
                     onClicked: logPanel.visible = !logPanel.visible
@@ -189,6 +195,20 @@ Window {
         Timer { id: toastTimer; interval: toast.timeout; onTriggered: toast.opacity = 0 }
         function show(msg, t) {
             text = msg; type = t || "info"; opacity = 1; toastTimer.restart();
+        }
+    }
+
+    Dialog {
+        id: kbDialog
+        modal: true
+        visible: false
+        standardButtons: Dialog.Close
+        onClosed: kbLoader.active = false
+        Loader {
+            id: kbLoader
+            anchors.fill: parent
+            active: visible && HasKenBurns
+            source: HasKenBurns ? "plugins/kenburns/KenBurnsTab.qml" : ""
         }
     }
 
