@@ -67,7 +67,7 @@ Window {
                 }
 
                 Repeater {
-                    model: ["magick","tesseract","n8n"]
+                    model: ["magick","tesseract","ffmpeg","n8n"]
                     delegate: Rectangle {
                         width: 10; height: 10; radius: 5
                         property string key: modelData

@@ -25,8 +25,10 @@ class KenBurnsBridge(QObject):
     def stop(self) -> None:
         proc = self._runner.proc
         if proc and proc.state() != QProcess.NotRunning:
-            proc.kill()
-            proc.waitForFinished(1000)
+            proc.terminate()
+            if not proc.waitForFinished(1500):
+                proc.kill()
+                proc.waitForFinished(1000)
 
     @Slot(str, str, result=bool)
     def savePreset(self, filename: str, args: str) -> bool:

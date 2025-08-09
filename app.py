@@ -140,6 +140,7 @@ class Bridge(QObject):
         self._statuses = {
             "magick": {"state": "unknown", "version": ""},
             "tesseract": {"state": "unknown", "version": ""},
+            "ffmpeg": {"state": "unknown", "version": ""},
             "n8n": {"state": "unknown", "version": "not set"},
         }
         self._load_pinned()
@@ -385,6 +386,7 @@ if __name__ == "__main__":
             print(f"[WARN] Ken Burns bridge load failed: {e}")
             has_kb = False
             engine.rootContext().setContextProperty("HasKenBurns", False)
+            engine.rootContext().setContextProperty("KenBurns", None)
 
     runner = ProcessRunner()
     bridge = Bridge(runner, engine)

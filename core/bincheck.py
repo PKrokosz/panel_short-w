@@ -62,6 +62,7 @@ def probe_status(actions: list[dict], env: dict | None = None) -> dict:
     status = {
         "magick": {"state": "unknown", "version": ""},
         "tesseract": {"state": "unknown", "version": ""},
+        "ffmpeg": {"state": "unknown", "version": ""},
         "n8n": {"state": "unknown", "version": "not set"},
     }
 
@@ -101,6 +102,16 @@ def probe_status(actions: list[dict], env: dict | None = None) -> dict:
         }
     else:
         status["tesseract"] = {"state": "fail", "version": ""}
+
+    # --- ffmpeg ---
+    if shutil.which("ffmpeg"):
+        ok, text = _version_ok(["ffmpeg", "-version"])
+        status["ffmpeg"] = {
+            "state": "ok" if ok else "warn",
+            "version": text.splitlines()[0] if text else "",
+        }
+    else:
+        status["ffmpeg"] = {"state": "fail", "version": ""}
 
     # --- n8n ---
     if env.get("N8N_WEBHOOK_PING"):
