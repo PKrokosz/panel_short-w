@@ -1,4 +1,5 @@
 
+import glob
 import os, shutil, subprocess, shlex
 
 def _version_ok(cmd: list[str]) -> tuple[bool, str]:
@@ -63,8 +64,15 @@ def probe_status(actions: list[dict], env: dict | None = None) -> dict:
         "tesseract": {"state": "unknown", "version": ""},
         "n8n": {"state": "unknown", "version": "not set"},
     }
-    if shutil.which("magick"):
-        ok, text = _version_ok(["magick", "-version"])
+
+    # --- ImageMagick ---
+    magick_cmd = shutil.which("magick")
+    if not magick_cmd:
+        pf = "C:/Program Files"
+        candidates = glob.glob(os.path.join(pf, "ImageMagick*", "magick.exe"))
+        magick_cmd = candidates[0] if candidates else None
+    if magick_cmd:
+        ok, text = _version_ok([magick_cmd, "-version"])
         status["magick"] = {
             "state": "ok" if ok else "warn",
             "version": text.splitlines()[0] if text else "",
@@ -72,8 +80,21 @@ def probe_status(actions: list[dict], env: dict | None = None) -> dict:
     else:
         status["magick"] = {"state": "fail", "version": ""}
 
-    if shutil.which("tesseract"):
-        ok, text = _version_ok(["tesseract", "--version"])
+    # --- Tesseract ---
+    tess_cmd = shutil.which("tesseract")
+    if not tess_cmd:
+        tess_cmd = env.get("TESSERACT_PATH")
+    if not tess_cmd:
+        candidates = [
+            "C:/Progra~1/Tesseract-OCR/tesseract.exe",
+            "C:/Program Files/Tesseract-OCR/tesseract.exe",
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                tess_cmd = c
+                break
+    if tess_cmd:
+        ok, text = _version_ok([tess_cmd, "--version"])
         status["tesseract"] = {
             "state": "ok" if ok else "warn",
             "version": text.splitlines()[0] if text else "",
@@ -81,8 +102,10 @@ def probe_status(actions: list[dict], env: dict | None = None) -> dict:
     else:
         status["tesseract"] = {"state": "fail", "version": ""}
 
+    # --- n8n ---
     if env.get("N8N_WEBHOOK_PING"):
         status["n8n"] = {"state": "ok", "version": "configured"}
     else:
         status["n8n"] = {"state": "unknown", "version": "not set"}
+
     return status

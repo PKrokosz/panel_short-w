@@ -97,6 +97,7 @@ class Bridge(QObject):
     pinnedChanged = Signal()
     modeChanged = Signal()
     statusesChanged = Signal()
+    clickThroughChanged = Signal()
 
     def __init__(self, runner: ProcessRunner, engine: QQmlApplicationEngine, parent=None):
         super().__init__(parent)
@@ -114,6 +115,7 @@ class Bridge(QObject):
         }
         self._current_mode = self._settings.value("mode", "default")
         self._pinned_path = APP_DIR / "config" / "pinned.json"
+        self._pinned_path.parent.mkdir(exist_ok=True)
         self._pinned = []
         self._statuses = {
             "magick": {"state": "unknown", "version": ""},
@@ -121,6 +123,8 @@ class Bridge(QObject):
             "n8n": {"state": "unknown", "version": "not set"},
         }
         self._load_pinned()
+        if not self._pinned_path.exists():
+            self._save_pinned()
 
     @Slot(str, result=bool)
     def runAction(self, action_id: str) -> bool:
@@ -142,6 +146,11 @@ class Bridge(QObject):
             win.show()
             state = "ON" if self._click_through else "OFF"
             self.notify.emit(f"Click-through: {state}")
+        self.clickThroughChanged.emit()
+
+    @Slot(result=bool)
+    def getClickThrough(self) -> bool:
+        return self._click_through
 
     def _load_pinned(self):
         try:
@@ -149,27 +158,44 @@ class Bridge(QObject):
             data = json.loads(self._pinned_path.read_text())
         except Exception:
             data = []
-        self._pinned = [pid for pid in data if any(a.get("id") == pid for a in self._actions)]
+        if not isinstance(data, list):
+            data = []
+        # normalize to list of unique strings
+        seen = set()
+        norm: list[str] = []
+        for pid in data:
+            if isinstance(pid, str) and pid not in seen:
+                seen.add(pid)
+                norm.append(pid)
+        self._pinned = [pid for pid in norm if any(a.get("id") == pid for a in self._actions)]
 
     def _save_pinned(self):
         try:
-            import json
-            self._pinned_path.write_text(json.dumps(self._pinned))
+            import json, os
+            tmp = self._pinned_path.with_name(self._pinned_path.name + ".tmp")
+            tmp.write_text(json.dumps(self._pinned))
+            os.replace(tmp, self._pinned_path)
         except Exception:
             pass
 
-    @Slot()
-    def reloadActions(self):
+    @Slot(result=bool)
+    def reloadActions(self) -> bool:
         try:
             fname = self._modes.get(self._current_mode, "actions.yaml")
-            self._actions = load_actions(APP_DIR / "config" / fname)
+            path = APP_DIR / "config" / fname
+            if not path.exists():
+                path = APP_DIR / "config" / "actions.yaml"
+                self.notify.emit("Fallback to actions.yaml")
+            self._actions = load_actions(path)
             self._load_pinned()
             self.actionsChanged.emit()
             self.pinnedChanged.emit()
             self.refreshStatuses()
             self.notify.emit("Actions reloaded")
+            return True
         except Exception as e:
             self.log.emit(f"[ERR] reload: {e}")
+            return False
 
     @Slot(result='QVariant')
     def getActions(self):
@@ -226,7 +252,8 @@ class Bridge(QObject):
 
     @Slot()
     def refreshStatuses(self):
-        self._statuses = probe_status(self._actions)
+        import os
+        self._statuses = probe_status(self._actions, env=os.environ)
         self.statusesChanged.emit()
 
     def _get_window(self):
@@ -239,8 +266,12 @@ def create_tray(app: QApplication, bridge: Bridge, win):
     tray = QSystemTrayIcon(QIcon(str(APP_DIR / "assets" / "icon.png")))
     menu = QMenu()
 
-    act_reload = QAction("Reload actions.yaml", tray)
+    act_reload = QAction("", tray)
+    def _update_reload_label():
+        act_reload.setText(f"Reload actions ({bridge.getMode()})")
+    _update_reload_label()
     act_reload.triggered.connect(bridge.reloadActions)
+    bridge.modeChanged.connect(_update_reload_label)
     menu.addAction(act_reload)
 
     act_panic = QAction("PANIC: regain input", tray)

@@ -9,7 +9,7 @@ Window {
     width: 480
     height: 320
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.Tool
+    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
 
     Rectangle {
         id: glass
@@ -26,6 +26,8 @@ Window {
     }
 
     property var statuses: Bridge.getStatuses()
+    property bool ctState: Bridge.getClickThrough()
+    property var logLines: []
 
     function stateColor(st) {
         if (st === "ok") return "#3ECF8E";
@@ -35,7 +37,11 @@ Window {
     }
 
     Column {
-        anchors.fill: parent
+        id: mainCol
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: logPanel.visible ? logPanel.top : parent.bottom
         anchors.margins: 8
         spacing: 8
 
@@ -53,7 +59,10 @@ Window {
                 ComboBox {
                     id: modeBox
                     model: Bridge.getModes()
-                    currentIndex: model.indexOf(Bridge.getMode())
+                    Component.onCompleted: {
+                        var idx = Bridge.getModes().indexOf(Bridge.getMode());
+                        currentIndex = idx >= 0 ? idx : 0;
+                    }
                     onActivated: Bridge.setMode(currentText)
                 }
 
@@ -63,12 +72,25 @@ Window {
                         width: 10; height: 10; radius: 5
                         property string key: modelData
                         color: stateColor(root.statuses[key].state)
-                        ToolTip.visible: hovered
-                        ToolTip.text: root.statuses[key].version
-                        MouseArea { anchors.fill: parent; hoverEnabled: true }
+                        MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true }
+                        ToolTip { visible: ma.containsMouse; text: root.statuses[key].version }
                     }
                 }
+
+                Button { text: "Reload"; onClicked: { if (!Bridge.reloadActions()) toast.show("Reload failed", "error") } }
+                Button {
+                    id: ctBtn
+                    text: root.ctState ? "Click-through: ON" : "Click-through: OFF"
+                    onClicked: Bridge.toggleClickThrough()
+                }
+                Button {
+                    id: logBtn
+                    text: logPanel.visible ? "Hide Log" : "Show Log"
+                    onClicked: logPanel.visible = !logPanel.visible
+                }
+                Button { text: "Close"; onClicked: Qt.quit() }
             }
+            MouseArea { anchors.fill: parent; z: -1; onPressed: root.startSystemMove(mouse) }
         }
 
         Flow {
@@ -76,6 +98,7 @@ Window {
             width: parent.width
             spacing: 4
             Repeater {
+                id: repPinned
                 model: Bridge.getPinned()
                 delegate: Item {
                     width: 120; height: 32
@@ -83,7 +106,7 @@ Window {
                         id: pbtn
                         anchors.fill: parent
                         text: modelData.label
-                        onClicked: Bridge.runAction(modelData.id)
+                        onClicked: { if (!Bridge.runAction(modelData.id)) toast.show("Action failed", "error") }
                     }
                     Row {
                         anchors.right: pbtn.right
@@ -102,6 +125,7 @@ Window {
             width: parent.width
             spacing: 4
             Repeater {
+                id: repAll
                 model: Bridge.getActions()
                 delegate: Item {
                     width: 140; height: 40
@@ -110,7 +134,7 @@ Window {
                         id: abtn
                         anchors.fill: parent
                         text: modelData.label
-                        onClicked: Bridge.runAction(modelData.id)
+                        onClicked: { if (!Bridge.runAction(modelData.id)) toast.show("Action failed", "error") }
                     }
                     Button {
                         text: pinned ? "★" : "☆"
@@ -123,23 +147,75 @@ Window {
         }
     }
 
+    Rectangle {
+        id: logPanel
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 120
+        visible: false
+        color: "#101010"
+        opacity: 0.8
+        TextArea {
+            id: logArea
+            anchors.fill: parent
+            readOnly: true
+            color: "white"
+        }
+    }
+
+    Rectangle {
+        id: toast
+        property string text: ""
+        property string type: "info"
+        property int timeout: 2000
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: header.height + 8
+        color: type === "error" ? "#E74C3C" : "#444444"
+        radius: 4
+        visible: opacity > 0
+        opacity: 0
+        z: 10
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+        Text { anchors.margins: 8; anchors.fill: parent; color: "white"; text: parent.text }
+        Timer { id: toastTimer; interval: toast.timeout; onTriggered: toast.opacity = 0 }
+        function show(msg, t) {
+            text = msg; type = t || "info"; opacity = 1; toastTimer.restart();
+        }
+    }
+
     Connections {
         target: Bridge
         function onActionsChanged() {
-            actionsFlow.model = Bridge.getActions();
-            pinRow.model = Bridge.getPinned();
+            repAll.model = Bridge.getActions();
+            repPinned.model = Bridge.getPinned();
         }
         function onPinnedChanged() {
-            pinRow.model = Bridge.getPinned();
-            actionsFlow.model = Bridge.getActions();
+            repPinned.model = Bridge.getPinned();
+            repAll.model = Bridge.getActions();
         }
         function onModeChanged() {
             modeBox.model = Bridge.getModes();
-            modeBox.currentIndex = modeBox.model.indexOf(Bridge.getMode());
+            var idx = modeBox.model.indexOf(Bridge.getMode());
+            modeBox.currentIndex = idx >= 0 ? idx : 0;
         }
         function onStatusesChanged() {
             root.statuses = Bridge.getStatuses();
         }
+        function onClickThroughChanged() {
+            root.ctState = Bridge.getClickThrough();
+            ctBtn.text = root.ctState ? "Click-through: ON" : "Click-through: OFF";
+        }
+        function onNotify(msg) {
+            toast.show(msg, "info");
+        }
+        function onLog(text) {
+            logLines.push(text);
+            if (logLines.length > 200) logLines.shift();
+            logArea.text = logLines.join('\n');
+            logArea.cursorPosition = logArea.text.length;
+        }
     }
+
 }
 

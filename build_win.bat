@@ -1,5 +1,5 @@
-
-# Build Windows exe with PyInstaller
+@echo off
+REM Build Windows exe with PyInstaller
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install pyinstaller
