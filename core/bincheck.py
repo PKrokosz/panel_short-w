@@ -55,3 +55,34 @@ def preflight(actions: list[dict]) -> list[str]:
         if m not in seen:
             uniq.append(m); seen.add(m)
     return uniq
+
+def probe_status(actions: list[dict], env: dict | None = None) -> dict:
+    env = env or os.environ
+    status = {
+        "magick": {"state": "unknown", "version": ""},
+        "tesseract": {"state": "unknown", "version": ""},
+        "n8n": {"state": "unknown", "version": "not set"},
+    }
+    if shutil.which("magick"):
+        ok, text = _version_ok(["magick", "-version"])
+        status["magick"] = {
+            "state": "ok" if ok else "warn",
+            "version": text.splitlines()[0] if text else "",
+        }
+    else:
+        status["magick"] = {"state": "fail", "version": ""}
+
+    if shutil.which("tesseract"):
+        ok, text = _version_ok(["tesseract", "--version"])
+        status["tesseract"] = {
+            "state": "ok" if ok else "warn",
+            "version": text.splitlines()[0] if text else "",
+        }
+    else:
+        status["tesseract"] = {"state": "fail", "version": ""}
+
+    if env.get("N8N_WEBHOOK_PING"):
+        status["n8n"] = {"state": "ok", "version": "configured"}
+    else:
+        status["n8n"] = {"state": "unknown", "version": "not set"}
+    return status

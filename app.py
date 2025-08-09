@@ -6,7 +6,7 @@ from pathlib import Path
 os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
 os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
 
-from PySide6.QtCore import QObject, Signal, Slot, QUrl, Qt, QTimer
+from PySide6.QtCore import QObject, Signal, Slot, QUrl, Qt, QTimer, QSettings
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
@@ -19,7 +19,7 @@ except Exception:
 
 from core.config import load_actions
 from core.process import ProcessRunner
-from core.bincheck import preflight
+from core.bincheck import preflight, probe_status
 
 APP_DIR = Path(__file__).resolve().parent
 
@@ -77,11 +77,26 @@ def enable_blur(window, acrylic=True):
     except Exception as e:
         print(f"[WARN] Blur enable failed: {e}")
 
+def _load_dotenv():
+    env_path = APP_DIR / ".env"
+    if env_path.exists():
+        try:
+            from dotenv import load_dotenv  # type: ignore
+            load_dotenv(env_path)
+        except Exception:
+            pass
+
+
+_load_dotenv()
+
 # ---- App Bridge & UI ----
 class Bridge(QObject):
     log = Signal(str)
     notify = Signal(str)
     actionsChanged = Signal()
+    pinnedChanged = Signal()
+    modeChanged = Signal()
+    statusesChanged = Signal()
 
     def __init__(self, runner: ProcessRunner, engine: QQmlApplicationEngine, parent=None):
         super().__init__(parent)
@@ -89,6 +104,23 @@ class Bridge(QObject):
         self._click_through = False
         self._actions = []
         self._engine = engine
+        self._settings = QSettings("overlay_router", "panel")
+        self._modes = {
+            "default": "actions.yaml",
+            "larp": "actions_larp.yaml",
+            "studio": "actions_studio.yaml",
+            "stream": "actions_stream.yaml",
+            "n8n": "actions_n8n.yaml",
+        }
+        self._current_mode = self._settings.value("mode", "default")
+        self._pinned_path = APP_DIR / "config" / "pinned.json"
+        self._pinned = []
+        self._statuses = {
+            "magick": {"state": "unknown", "version": ""},
+            "tesseract": {"state": "unknown", "version": ""},
+            "n8n": {"state": "unknown", "version": "not set"},
+        }
+        self._load_pinned()
 
     @Slot(str, result=bool)
     def runAction(self, action_id: str) -> bool:
@@ -111,11 +143,30 @@ class Bridge(QObject):
             state = "ON" if self._click_through else "OFF"
             self.notify.emit(f"Click-through: {state}")
 
+    def _load_pinned(self):
+        try:
+            import json
+            data = json.loads(self._pinned_path.read_text())
+        except Exception:
+            data = []
+        self._pinned = [pid for pid in data if any(a.get("id") == pid for a in self._actions)]
+
+    def _save_pinned(self):
+        try:
+            import json
+            self._pinned_path.write_text(json.dumps(self._pinned))
+        except Exception:
+            pass
+
     @Slot()
     def reloadActions(self):
         try:
-            self._actions = load_actions(APP_DIR / "config" / "actions.yaml")
+            fname = self._modes.get(self._current_mode, "actions.yaml")
+            self._actions = load_actions(APP_DIR / "config" / fname)
+            self._load_pinned()
             self.actionsChanged.emit()
+            self.pinnedChanged.emit()
+            self.refreshStatuses()
             self.notify.emit("Actions reloaded")
         except Exception as e:
             self.log.emit(f"[ERR] reload: {e}")
@@ -123,6 +174,60 @@ class Bridge(QObject):
     @Slot(result='QVariant')
     def getActions(self):
         return self._actions
+
+    @Slot(result='QVariant')
+    def getPinned(self):
+        return [a for pid in self._pinned for a in self._actions if a["id"] == pid]
+
+    @Slot(str)
+    def pinAction(self, action_id: str):
+        if action_id not in self._pinned:
+            self._pinned.append(action_id)
+            self._save_pinned()
+            self.pinnedChanged.emit()
+
+    @Slot(str)
+    def unpinAction(self, action_id: str):
+        if action_id in self._pinned:
+            self._pinned.remove(action_id)
+            self._save_pinned()
+            self.pinnedChanged.emit()
+
+    @Slot(int, int)
+    def movePinned(self, from_index: int, to_index: int):
+        if 0 <= from_index < len(self._pinned) and 0 <= to_index < len(self._pinned):
+            self._pinned.insert(to_index, self._pinned.pop(from_index))
+            self._save_pinned()
+            self.pinnedChanged.emit()
+
+    @Slot(str, result=bool)
+    def isPinned(self, action_id: str) -> bool:
+        return action_id in self._pinned
+
+    @Slot(result='QStringList')
+    def getModes(self):
+        return list(self._modes.keys())
+
+    @Slot(result=str)
+    def getMode(self) -> str:
+        return self._current_mode
+
+    @Slot(str)
+    def setMode(self, mode: str):
+        if mode in self._modes and mode != self._current_mode:
+            self._current_mode = mode
+            self._settings.setValue("mode", mode)
+            self.modeChanged.emit()
+            self.reloadActions()
+
+    @Slot(result='QVariant')
+    def getStatuses(self):
+        return self._statuses
+
+    @Slot()
+    def refreshStatuses(self):
+        self._statuses = probe_status(self._actions)
+        self.statusesChanged.emit()
 
     def _get_window(self):
         if self._engine.rootObjects():
@@ -165,6 +270,7 @@ def create_tray(app: QApplication, bridge: Bridge, win):
         msgs = preflight(bridge.getActions())
         for m in msgs:
             bridge.notify.emit(m)
+        bridge.refreshStatuses()
     act_preflight.triggered.connect(_run_preflight)
     menu.addAction(act_preflight)
 
@@ -220,7 +326,7 @@ if __name__ == "__main__":
 
     engine.rootContext().setContextProperty("Bridge", bridge)
 
-    bridge._actions = load_actions(APP_DIR / "config" / "actions.yaml")
+    bridge.reloadActions()
 
     engine.load(QUrl.fromLocalFile(str(APP_DIR / "ui" / "Main.qml")))
     if not engine.rootObjects():
@@ -232,6 +338,10 @@ if __name__ == "__main__":
     tray = create_tray(app, bridge, win)
     hk_thread = setup_keyboard_hotkey(win, bridge)
 
-    QTimer.singleShot(300, lambda: [bridge.notify.emit(m) for m in preflight(bridge.getActions())])
+    def _startup():
+        for m in preflight(bridge.getActions()):
+            bridge.notify.emit(m)
+        bridge.refreshStatuses()
+    QTimer.singleShot(300, _startup)
 
     sys.exit(app.exec())

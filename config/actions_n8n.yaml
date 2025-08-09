@@ -1,0 +1,20 @@
+actions:
+  n8n_ping:
+    label: "n8n: Ping"
+    command: python scripts/n8n_trigger.py --url ${N8N_WEBHOOK_PING} --data source=overlay --data host=%COMPUTERNAME%
+    cwd: C:/Users/admin/Downloads/overlay_router
+
+  n8n_quicknote_clipboard:
+    label: "n8n: Quick Note (clipboard)"
+    command: python scripts/n8n_trigger.py --url ${N8N_WEBHOOK_QUICKNOTE} --clipboard --data tag=overlay
+    cwd: C:/Users/admin/Downloads/overlay_router
+
+  n8n_upload_input_png:
+    label: "n8n: Upload input.png"
+    command: python scripts/n8n_trigger.py --url ${N8N_WEBHOOK_UPLOAD} --file file=input.png --data who=overlay
+    cwd: C:/Users/admin/Downloads/overlay_router
+
+  n8n_publish_reel:
+    label: "n8n: Publish Reel (KenBurns)"
+    command: python scripts/n8n_trigger.py --url ${N8N_WEBHOOK_REEL} --data title="Ken Burns Reel" --data folder="C:/Users/admin/Downloads/video" --data dry_run=false
+    cwd: C:/Users/admin/Downloads/overlay_router
