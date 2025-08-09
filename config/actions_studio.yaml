@@ -1,0 +1,4 @@
+actions:
+  sample_studio:
+    label: "Studio: Sample"
+    command: echo STUDIO

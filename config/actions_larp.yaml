@@ -1,0 +1,4 @@
+actions:
+  sample_larp:
+    label: "LARP: Sample"
+    command: echo LARP

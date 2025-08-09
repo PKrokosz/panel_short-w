@@ -1,0 +1,4 @@
+actions:
+  sample_stream:
+    label: "Stream: Sample"
+    command: echo STREAM
