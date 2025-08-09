@@ -1,0 +1,27 @@
+name: build-windows
+on:
+  push:
+    branches: [ "clean-slate", "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - run: |
+          pyinstaller app.py -n OverlayRouter -w ^
+            --hidden-import PySide6.QtQml --hidden-import PySide6.QtGui --hidden-import PySide6.QtWidgets ^
+            --collect-all PySide6 --collect-submodules PySide6 ^
+            --add-data "ui;ui" --add-data "assets;assets" --add-data "config;config"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OverlayRouter-win
+          path: dist/OverlayRouter/

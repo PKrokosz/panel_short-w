@@ -1,0 +1,16 @@
+
+actions:
+  ken_burns:
+    label: "Ken Burns Reel"
+    command: python kb_launch.py
+    cwd: C:/Users/admin/Downloads/overlay_router
+
+  ocr_png:
+    label: "OCR: input.png → out.txt"
+    command: C:/Progra~1/Tesseract-OCR/tesseract.exe input.png out
+    cwd: C:/Users/admin/Downloads/overlay_router
+
+  imagemagick_convert:
+    label: "IM: resize sample.jpg"
+    command: magick sample.jpg -resize 1280x sample_out.jpg
+    cwd: C:/Users/admin/Downloads/overlay_router

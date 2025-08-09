@@ -1,0 +1,12 @@
+# Direct dependencies (compile with pip-tools if needed)
+PySide6
+PyYAML
+keyboard
+moviepy
+imageio-ffmpeg
+pillow
+numpy
+librosa
+opencv-python
+pydub
+pytesseract
