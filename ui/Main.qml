@@ -73,7 +73,11 @@ Window {
                         property string key: modelData
                         color: stateColor(root.statuses[key].state)
                         MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true }
-                        ToolTip { visible: ma.containsMouse; text: root.statuses[key].version }
+                        ToolTip {
+                            visible: ma.containsMouse
+                            text: root.statuses[key].version
+                            padding: 6
+                        }
                     }
                 }
 
@@ -90,7 +94,11 @@ Window {
                 }
                 Button { text: "Close"; onClicked: Qt.quit() }
             }
-            MouseArea { anchors.fill: parent; z: -1; onPressed: root.startSystemMove(mouse) }
+            MouseArea {
+                anchors.fill: parent
+                z: 999
+                onPressed: root.startSystemMove()
+            }
         }
 
         Flow {
